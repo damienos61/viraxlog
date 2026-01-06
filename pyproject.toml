@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "viraxlog"
+version = "1.0.0"
+description = "Système de logging immuable avec chaînage cryptographique et persistance SQLite."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "damienos61", email = "damienos61@gmail.com"}
+]
+dependencies = [
+    "psutil>=5.9.0"
+]
+keywords = ["logging", "cryptography", "immutable", "sqlite", "audit", "watchers", "blockchain"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: System :: Logging",
+    "Topic :: Security :: Cryptography"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black",
+    "isort"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/damienos61/viraxlog"
+"Documentation" = "https://github.com/damienos61/viraxlog#readme"
+"Bug Tracker" = "https://github.com/damienos61/viraxlog/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+# Commande principale pour lancer l'outil depuis le terminal
+viraxlog = "viraxlog.interface:main"
