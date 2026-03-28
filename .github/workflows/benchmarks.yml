@@ -1,0 +1,106 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+    
+    - name: Run performance benchmarks
+      run: |
+        pytest tests/ -m performance -v --benchmark-only || true
+    
+    - name: Load test - 10k entries
+      run: |
+        python -c "
+import time
+from viraxlog import initialize, info, stop, get_stats
+
+initialize()
+start = time.time()
+for i in range(10000):
+    info('perf_test', {'index': i})
+elapsed = time.time() - start
+
+stats = get_stats()
+print(f'\\n📊 Benchmark Results:')
+print(f'  Entries logged: {stats[\"logs_created\"]}')
+print(f'  Time: {elapsed:.2f}s')
+print(f'  Throughput: {stats[\"logs_created\"]/elapsed:.0f} entries/sec')
+stop()
+"
+    
+    - name: Load test - 100k entries
+      run: |
+        python -c "
+import time
+from viraxlog import initialize, info, stop, get_stats
+
+initialize(session_id='BENCH-100K')
+start = time.time()
+for i in range(100000):
+    if i % 10000 == 0:
+        print(f'  Progress: {i}/100000')
+    info('perf_test', {'index': i})
+elapsed = time.time() - start
+
+stats = get_stats()
+print(f'\\n📊 Benchmark Results (100k):')
+print(f'  Entries logged: {stats[\"logs_created\"]}')
+print(f'  Time: {elapsed:.2f}s')
+print(f'  Throughput: {stats[\"logs_created\"]/elapsed:.0f} entries/sec')
+stop()
+"
+    
+    - name: Memory usage test
+      run: |
+        python -c "
+import psutil
+import os
+from viraxlog import initialize, info, get_metrics, stop
+
+process = psutil.Process(os.getpid())
+
+initialize()
+mem_before = process.memory_info().rss / 1024 / 1024
+
+for i in range(10000):
+    info('memory_test', {'index': i, 'data': 'x' * 100})
+
+mem_after = process.memory_info().rss / 1024 / 1024
+metrics = get_metrics()
+
+print(f'\\n💾 Memory Usage:')
+print(f'  Before: {mem_before:.2f} MB')
+print(f'  After: {mem_after:.2f} MB')
+print(f'  Delta: {mem_after - mem_before:.2f} MB')
+print(f'  Per entry: {(mem_after - mem_before) * 1024 / 10000:.1f} KB')
+print(f'  CPU: {metrics.cpu_percent:.1f}%')
+
+stop()
+"
+    
+    - name: Archive benchmark results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results
+        path: .benchmarks/

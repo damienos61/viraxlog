@@ -1,0 +1,101 @@
+name: Tests & Coverage
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+    
+    - name: Lint with ruff
+      run: |
+        ruff check src/viraxlog tests
+      continue-on-error: true
+    
+    - name: Format check with black
+      run: |
+        black --check src/viraxlog tests
+      continue-on-error: true
+    
+    - name: Type check with mypy
+      run: |
+        mypy src/viraxlog --ignore-missing-imports
+      continue-on-error: true
+    
+    - name: Run tests with pytest
+      run: |
+        pytest tests/ -v --cov=src/viraxlog --cov-report=xml --cov-report=html
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+    
+    - name: Archive coverage reports
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report-py${{ matrix.python-version }}
+        path: htmlcov/
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Bandit security check
+      run: |
+        pip install bandit
+        bandit -r src/viraxlog || true
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install build tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    
+    - name: Build distribution
+      run: |
+        python -m build
+    
+    - name: Check distribution
+      run: |
+        twine check dist/*
+    
+    - name: Archive build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: distribution
+        path: dist/
